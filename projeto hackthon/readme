@@ -1,0 +1,88 @@
+# Assistente MIO
+
+Plataforma de apoio terapêutico com dois perfis: o **paciente** conversa com a MIO (assistente de IA), registra o humor e envia documentos; o **terapeuta** acompanha os pacientes em um painel.
+
+O projeto nasceu como um app Streamlit (`.streamlit/projeto.py`) e agora tem um frontend em HTML, CSS e JavaScript puros.
+
+> **Aviso:** a MIO e as hipóteses geradas por IA são ferramentas de apoio. Não substituem avaliação, diagnóstico ou acompanhamento profissional. Em caso de sofrimento intenso, procure ajuda: **CVV 188** (24h, gratuito).
+
+## Funcionalidades
+
+**Paciente**
+- Cadastro e login, com quiz de bem-estar no cadastro (6 perguntas, nível Baixo/Moderado/Alto)
+- Conversa terapêutica com a MIO, com opção de gerar imagem junto da resposta
+- Registro de humor e relatório diário (o sentimento é analisado e aparece no calendário)
+- Envio de documentos (PDF, DOCX, TXT, PNG, JPG, JPEG, até 10 MB cada)
+- Teste de personalidade (Big Five, versão curta de 10 itens)
+- Atalho para falar com o terapeuta pelo WhatsApp
+
+**Terapeuta** (login com CRP/CRM)
+- Relatórios e documentos recebidos (com download)
+- Histórico completo por paciente (quiz, personalidade, documentos, relatórios, conversas)
+- Planilha de pacientes com busca e exportação em CSV
+- Hipóteses diagnósticas geradas por IA, apenas como apoio à decisão clínica
+- Contatos de familiares, com envio por WhatsApp liberado só após confirmar a autorização do paciente
+
+## Estrutura de pastas
+
+```
+projeto-mio/
+├── frontend/
+│   ├── index.html
+│   ├── style.css
+│   └── app.js              # configure API_URL aqui
+├── backend/                # a criar (ver "Contrato da API")
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── .env                # GEMINI_API_KEY (nunca versionar)
+│   └── .env.example
+├── .streamlit/
+│   └── projeto.py          # versão original em Streamlit (legado)
+├── estilo/                 # vazia
+├── .gitignore              # venv/, .env, __pycache__/, secrets.toml
+└── README.md
+```
+
+## Como rodar o frontend (modo demonstração)
+
+1. Abra `frontend/index.html` no navegador, ou use a extensão **Live Server** do VS Code (botão direito em `index.html` > *Open with Live Server*).
+2. Entre com uma conta de teste:
+
+| Perfil | Usuário / registro | Senha |
+|---|---|---|
+| Paciente | `Duda` | `1234` |
+| Terapeuta | `12345` | `admin` |
+
+Com `API_URL = ""` tudo fica salvo no `localStorage` do navegador e a MIO responde com um texto fixo. As contas e senhas desse modo são só para demonstração.
+
+## Como conectar o backend (IA real)
+
+1. No `frontend/app.js`, altere a primeira linha de configuração:
+   ```js
+   const API_URL = "http://localhost:8000";
+   ```
+2. Crie o backend em Python (por exemplo com FastAPI) com os endpoints abaixo e libere **CORS** para a origem do frontend (por exemplo `http://127.0.0.1:5500` no Live Server).
+3. Guarde a chave do Gemini em `backend/.env` e leia com `os.getenv("GEMINI_API_KEY")`.
+
+### Contrato da API
+
+| Método e rota | Corpo da requisição | Resposta |
+|---|---|---|
+| `POST /chat` | `{ "mensagem": "texto", "gerar_imagem": false }` | `{ "resposta": "texto", "imagem": "URL ou data URI (opcional)" }` |
+| `POST /sentimento` | `{ "texto": "texto" }` | `{ "label": "POSITIVE" \| "NEGATIVE" \| "NEUTRAL" }` |
+| `POST /diagnostico` | `{ "paciente": "nome", "resumo": "texto" }` | `{ "texto": "hipóteses a investigar" }` |
+
+Sugestão de tecnologias, já usadas no projeto original: Gemini (`gemini-2.5-flash`) para `/chat` e `/diagnostico`, `distilbert-base-uncased-finetuned-sst-2-english` (Transformers) para `/sentimento` e Stable Diffusion v1.5 (Diffusers) para as imagens.
+
+## Segurança e privacidade
+
+- **A chave do Gemini nunca deve ficar no frontend nem no código.** No `projeto.py` original ela está escrita no código; revogue-a e gere uma nova.
+- Não envie ao repositório o `.env`, o `secrets.toml` nem a pasta `venv`.
+- O frontend guarda usuários, senhas e dados clínicos no navegador, sem criptografia. Em produção, mova autenticação (com senhas em hash), armazenamento e envio de arquivos para o backend, com HTTPS.
+- Os dados dos pacientes são sensíveis (LGPD): colete só o necessário, peça consentimento e restrinja o acesso ao terapeuta responsável.
+
+## Limitações atuais
+
+- O backend ainda não existe nesta versão; sem ele, chat, análise de sentimento, imagens e diagnósticos funcionam só em modo demonstração (ou não funcionam, no caso de imagens e diagnósticos).
+- Documentos enviados ficam no `localStorage`, que tem limite de cerca de 5 MB no total.
+- O teste de personalidade e o quiz são retratos informativos, não diagnósticos.
